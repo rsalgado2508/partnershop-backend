@@ -15,7 +15,14 @@ export class OrdenesService {
   async findAll(
     filterDto: FilterOrdenesDto,
   ): Promise<PaginatedResponseDto<OrdenVenta>> {
-    const { page = 1, limit = 10, estatus, busqueda, plataforma } = filterDto;
+    const {
+      page = 1,
+      limit = 10,
+      estatus,
+      busqueda,
+      plataforma,
+      rangoFechaReporte,
+    } = filterDto;
     const skip = (page - 1) * limit;
 
     const qb = this.ordenRepository
@@ -28,9 +35,11 @@ export class OrdenesService {
       qb.andWhere('orden.estatus = :estatus', { estatus });
     }
 
+    console.log(busqueda);
+
     if (busqueda) {
       qb.andWhere(
-        '(CAST(orden.idOrden AS TEXT) LIKE :busqueda OR orden.numeroGuia ILIKE :busquedaLike)',
+        '(CAST(orden.idOrden AS TEXT) LIKE :busqueda OR CAST(orden.numeroGuia AS TEXT) ILIKE :busquedaLike)',
         {
           busqueda: `%${busqueda}%`,
           busquedaLike: `%${busqueda}%`,
@@ -40,6 +49,35 @@ export class OrdenesService {
 
     if (plataforma) {
       qb.andWhere('orden.plataforma = :plataforma', { plataforma });
+    }
+
+    if (rangoFechaReporte) {
+      switch (rangoFechaReporte) {
+        case 'ultimos_7_dias':
+          qb.andWhere(
+            "orden.fechaReporte >= CURRENT_TIMESTAMP - INTERVAL '7 days'",
+          );
+          break;
+        case 'entre_7_y_15_dias':
+          qb.andWhere(
+            "orden.fechaReporte >= CURRENT_TIMESTAMP - INTERVAL '15 days'",
+          ).andWhere(
+            "orden.fechaReporte <= CURRENT_TIMESTAMP - INTERVAL '7 days'",
+          );
+          break;
+        case 'entre_15_y_20_dias':
+          qb.andWhere(
+            "orden.fechaReporte >= CURRENT_TIMESTAMP - INTERVAL '20 days'",
+          ).andWhere(
+            "orden.fechaReporte <= CURRENT_TIMESTAMP - INTERVAL '15 days'",
+          );
+          break;
+        case 'mas_de_20_dias':
+          qb.andWhere(
+            "orden.fechaReporte < CURRENT_TIMESTAMP - INTERVAL '20 days'",
+          );
+          break;
+      }
     }
 
     qb.orderBy('orden.fechaCreacion', 'DESC').skip(skip).take(limit);
