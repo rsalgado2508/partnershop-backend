@@ -41,6 +41,7 @@ describe('NovedadesService', () => {
 
   const mockManager = {
     create: jest.fn().mockImplementation((_, data) => data),
+    findOne: jest.fn().mockResolvedValue(mockNovedad),
     save: jest.fn().mockImplementation((entity) => ({
       ...entity,
       idNovedad: 1,
@@ -83,6 +84,7 @@ describe('NovedadesService', () => {
     historialRepo = module.get<Repository<HistorialNovedad>>(
       getRepositoryToken(HistorialNovedad),
     );
+    jest.clearAllMocks();
   });
 
   it('should be defined', () => {
@@ -130,17 +132,48 @@ describe('NovedadesService', () => {
 
   describe('create', () => {
     it('should create novedad and historial within a transaction', async () => {
-      jest
-        .spyOn(novedadRepo, 'findOne')
-        .mockResolvedValue(mockNovedad as Novedad);
-
-      await service.create(
+      const result = await service.create(
         { idOrden: 100, idCategoria: 1, descripcion: 'Producto dañado' },
         mockUser,
       );
 
       expect(mockDataSource.transaction).toHaveBeenCalled();
       expect(mockManager.save).toHaveBeenCalledTimes(2);
+      expect(mockManager.findOne).toHaveBeenCalledWith(Novedad, {
+        where: { idNovedad: 1 },
+        relations: ['categoria', 'orden', 'orden.cliente'],
+      });
+      expect(novedadRepo.findOne).not.toHaveBeenCalled();
+      expect(result).toEqual(mockNovedad);
+    });
+  });
+
+  describe('updateEstado', () => {
+    it('should use the transaction manager to load and return the novedad', async () => {
+      mockManager.findOne
+        .mockResolvedValueOnce(mockNovedad)
+        .mockResolvedValueOnce({
+          ...mockNovedad,
+          estado: EstadoNovedad.CERRADA,
+        });
+
+      const result = await service.updateEstado(
+        1,
+        { estado: EstadoNovedad.CERRADA },
+        mockUser,
+      );
+
+      expect(mockDataSource.transaction).toHaveBeenCalled();
+      expect(mockManager.findOne).toHaveBeenNthCalledWith(1, Novedad, {
+        where: { idNovedad: 1 },
+        relations: ['categoria', 'orden', 'orden.cliente'],
+      });
+      expect(mockManager.findOne).toHaveBeenNthCalledWith(2, Novedad, {
+        where: { idNovedad: 1 },
+        relations: ['categoria', 'orden', 'orden.cliente'],
+      });
+      expect(novedadRepo.findOne).not.toHaveBeenCalled();
+      expect(result.estado).toBe(EstadoNovedad.CERRADA);
     });
   });
 

@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { Novedad } from './entities/novedad.entity';
 import { HistorialNovedad } from './entities/historial-novedad.entity';
 import { CreateNovedadDto } from './dto/create-novedad.dto';
@@ -38,7 +38,7 @@ export class NovedadesService {
       });
       await manager.save(historial);
 
-      return this.findOne(saved.idNovedad);
+      return this.findOneWithManager(manager, saved.idNovedad);
     });
   }
 
@@ -91,7 +91,7 @@ export class NovedadesService {
     user: CognitoUser,
   ): Promise<Novedad> {
     return this.dataSource.transaction(async (manager) => {
-      const novedad = await this.findOne(id);
+      const novedad = await this.findOneWithManager(manager, id);
       const estadoAnterior = novedad.estado;
 
       novedad.estado = dto.estado;
@@ -112,7 +112,7 @@ export class NovedadesService {
       });
       await manager.save(historial);
 
-      return this.findOne(id);
+      return this.findOneWithManager(manager, id);
     });
   }
 
@@ -131,5 +131,21 @@ export class NovedadesService {
       where: { idNovedad: id },
       order: { fecha: 'ASC' },
     });
+  }
+
+  private async findOneWithManager(
+    manager: EntityManager,
+    id: number,
+  ): Promise<Novedad> {
+    const novedad = await manager.findOne(Novedad, {
+      where: { idNovedad: id },
+      relations: ['categoria', 'orden', 'orden.cliente'],
+    });
+
+    if (!novedad) {
+      throw new NotFoundException(`Novedad con ID ${id} no encontrada`);
+    }
+
+    return novedad;
   }
 }

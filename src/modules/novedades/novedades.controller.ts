@@ -17,6 +17,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import type { CognitoUser } from '../../common/decorators/current-user.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Role } from '../../common/enums';
+import { Public } from 'src/common/decorators/public.decorator';
 
 @ApiTags('Novedades')
 @Controller('novedades')
@@ -54,6 +55,7 @@ export class NovedadesController {
   }
 
   @Get('orden/:idOrden')
+  @Public()
   @ApiOperation({ summary: 'Listar novedades de una orden específica' })
   findByOrden(@Param('idOrden', ParseIntPipe) idOrden: number) {
     return this.novedadesService.findByOrden(idOrden);
