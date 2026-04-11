@@ -8,85 +8,46 @@ export interface MenuItem {
   children?: MenuItem[];
 }
 
-const MENU_ORDENES: MenuItem = {
-  key: 'ordenes',
+const MENU_DASHBOARD: MenuItem = {
+  key: 'dashboard',
+  label: 'Dashboard',
+  icon: 'dashboard',
+  route: '/dashboard',
+};
+
+const MENU_ORDERS: MenuItem = {
+  key: 'orders',
   label: 'Órdenes',
   icon: 'shopping_cart',
   route: '/ordenes',
 };
 
-const MENU_NOVEDADES: MenuItem = {
-  key: 'novedades',
-  label: 'Novedades',
-  icon: 'report_problem',
-  route: '/novedades',
-  children: [
-    {
-      key: 'novedades-listado',
-      label: 'Listado de Novedades',
-      route: '/novedades',
-    },
-    {
-      key: 'novedades-registrar',
-      label: 'Registrar Novedad',
-      route: '/novedades/nueva',
-    },
-  ],
-};
-
-const MENU_NOVEDADES_READONLY: MenuItem = {
-  key: 'novedades',
-  label: 'Novedades',
-  icon: 'report_problem',
-  route: '/novedades',
-  children: [
-    {
-      key: 'novedades-listado',
-      label: 'Listado de Novedades',
-      route: '/novedades',
-    },
-  ],
-};
-
-const MENU_CATEGORIAS: MenuItem = {
-  key: 'categorias',
-  label: 'Categorías de Novedad',
+const MENU_ISSUE_CATEGORY: MenuItem = {
+  key: 'issue_category',
+  label: 'Tipo de Novedades',
   icon: 'category',
-  route: '/categorias-novedad',
+  route: '/configuracion/categorias-novedad',
 };
 
-const MENU_CONFIGURACION: MenuItem = {
-  key: 'configuracion',
-  label: 'Configuración',
-  icon: 'settings',
-  route: '/configuracion',
-  children: [
-    {
-      key: 'config-categorias',
-      label: 'Categorías de Novedad',
-      route: '/configuracion/categorias-novedad',
-    },
-  ],
+const MENU_USERS: MenuItem = {
+  key: 'users',
+  label: 'Usuarios',
+  icon: 'group',
+  route: '/usuarios',
 };
 
 export const MENU_POR_ROL: Record<Role, MenuItem[]> = {
   [Role.ADMIN]: [
-    MENU_ORDENES,
-    MENU_NOVEDADES,
-    MENU_CONFIGURACION,
+    MENU_DASHBOARD,
+    MENU_ORDERS,
+    MENU_ISSUE_CATEGORY,
+    MENU_USERS,
   ],
   [Role.OPERATIONS_ANALYST]: [
-    MENU_ORDENES,
-    MENU_NOVEDADES,
+    MENU_DASHBOARD,
+    MENU_ORDERS,
   ],
-  [Role.OPERATIONS_COORDINATOR]: [
-    MENU_ORDENES,
-    MENU_NOVEDADES,
-  ],
-  [Role.GROWTH]: [
-    MENU_ORDENES,
-  ],
-  [Role.SUPPLY]: [
-    MENU_ORDENES,
-  ],
+  [Role.OPERATIONS_COORDINATOR]: [],
+  [Role.GROWTH]: [],
+  [Role.SUPPLY]: [],
 };
