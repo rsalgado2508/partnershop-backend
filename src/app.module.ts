@@ -11,6 +11,7 @@ import { OrdenesModule } from './modules/ordenes/ordenes.module';
 import { CategoriasNovedadModule } from './modules/categorias-novedad/categorias-novedad.module';
 import { NovedadesModule } from './modules/novedades/novedades.module';
 import { HealthModule } from './modules/health/health.module';
+import { ReportesModule } from './modules/reportes/reportes.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { HealthModule } from './modules/health/health.module';
     CategoriasNovedadModule,
     NovedadesModule,
     HealthModule,
+    ReportesModule,
   ],
 })
 export class AppModule {}
