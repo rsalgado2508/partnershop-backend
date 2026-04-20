@@ -7,6 +7,7 @@ export const RANGOS_FECHA_REPORTE = [
   'entre_7_y_15_dias',
   'entre_15_y_20_dias',
   'mas_de_20_dias',
+  'guias_mayor_a_2_dias',
 ] as const;
 
 export type RangoFechaReporte = (typeof RANGOS_FECHA_REPORTE)[number];
@@ -17,7 +18,9 @@ export class FilterOrdenesDto extends PaginationDto {
   @IsString()
   estatus?: string;
 
-  @ApiPropertyOptional({ description: 'Buscar por número de orden o guía' })
+  @ApiPropertyOptional({
+    description: 'Buscar por número de orden, guía o id de orden tienda',
+  })
   @IsOptional()
   @IsString()
   busqueda?: string;
@@ -28,7 +31,8 @@ export class FilterOrdenesDto extends PaginationDto {
   plataforma?: string;
 
   @ApiPropertyOptional({
-    description: 'Filtrar por rango de fecha de reporte',
+    description:
+      'Filtrar por rango de fecha de reporte o por guías mayores a 2 días',
     enum: RANGOS_FECHA_REPORTE,
   })
   @IsOptional()
