@@ -14,9 +14,6 @@ export class SnapshotOrdenesPorEjecucion {
   @Column({ name: 'plataforma', type: 'text' })
   plataforma: string;
 
-  @Column({ name: 'estado_actual', type: 'text' })
-  estadoActual: string;
-
   @Column({ name: 'total_entre_7_15', type: 'integer', default: 0 })
   totalEntre715: number;
 
@@ -25,9 +22,6 @@ export class SnapshotOrdenesPorEjecucion {
 
   @Column({ name: 'total_mayor_20', type: 'integer', default: 0 })
   totalMayor20: number;
-
-  @Column({ name: 'total_general', type: 'integer', default: 0 })
-  totalGeneral: number;
 
   @Column({
     name: 'total_guias_mayor_a_2_dias',

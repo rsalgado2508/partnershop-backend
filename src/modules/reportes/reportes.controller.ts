@@ -6,6 +6,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { FilterSeguimientoDiarioDto } from './dto/filter-seguimiento-diario.dto';
+import { NovedadOcurrenciaResponseDto } from './dto/novedad-ocurrencia-response.dto';
 import { SeguimientoDiarioResponseDto } from './dto/seguimiento-diario-response.dto';
 import { ReportesService } from './reportes.service';
 
@@ -24,5 +25,25 @@ export class ReportesController {
   @ApiOkResponse({ type: SeguimientoDiarioResponseDto, isArray: true })
   getSeguimientoDiario(@Query() filters: FilterSeguimientoDiarioDto) {
     return this.reportesService.getSeguimientoDiario(filters);
+  }
+
+  @Get('novedades-guias-mayor-a-2-dias')
+  @ApiOperation({
+    summary:
+      'Obtener el total de ocurrencias por categoría de novedad para guías mayores a 2 días',
+  })
+  @ApiOkResponse({ type: NovedadOcurrenciaResponseDto, isArray: true })
+  getNovedadesGuiasMayorA2Dias() {
+    return this.reportesService.getNovedadesGuiasMayorA2Dias();
+  }
+
+  @Get('novedades-mayor-a-20-dias')
+  @ApiOperation({
+    summary:
+      'Obtener el total de ocurrencias por categoría de novedad para órdenes mayores a 20 días',
+  })
+  @ApiOkResponse({ type: NovedadOcurrenciaResponseDto, isArray: true })
+  getNovedadesMayorA20Dias() {
+    return this.reportesService.getNovedadesMayorA20Dias();
   }
 }

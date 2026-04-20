@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { FilterSeguimientoDiarioDto } from './dto/filter-seguimiento-diario.dto';
+import { NovedadOcurrenciaResponseDto } from './dto/novedad-ocurrencia-response.dto';
 import { SeguimientoDiarioResponseDto } from './dto/seguimiento-diario-response.dto';
+import { SnapshotOrdenesPorEjecucion } from './entities/snapshot-ordenes-por-ejecucion.entity';
 
 type SeguimientoDiarioRawRow = {
   fechaSeguimiento: string | Date;
@@ -11,95 +14,66 @@ type SeguimientoDiarioRawRow = {
   totalMayorA20Dias: string | number;
 };
 
+type NovedadOcurrenciaRawRow = {
+  nombre: string;
+  total: string | number;
+};
+
 @Injectable()
 export class ReportesService {
-  private static readonly ESTADOS_GUIAS_MAYOR_A_2_DIAS = [
-    'GUIA_GENERADA',
-    'ENTREGADO A TRANSPORTADORA',
-    'POR RECOLECTAR',
-    'ALISTADO',
-    'PENDIENTE',
-  ];
+  private static readonly ESTATUS_GUIAS_MAYOR_A_2_DIAS = [16, 18, 22, 35, 46];
 
-  private static readonly ESTADOS_EXCLUIDOS = [
-    'ENTREGADO',
-    'DEVOLUCION',
-    'CANCELADO',
-    'RECHAZADO',
-    'GUIA_ANULADA',
-    'ANULADO',
-  ];
+  private static readonly ESTATUS_EXCLUIDOS_MAYOR_A_20_DIAS = [15, 5, 3, 23];
 
   private static readonly DIAS_SEMANA = new Intl.DateTimeFormat('es-ES', {
     weekday: 'long',
     timeZone: 'UTC',
   });
 
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    @InjectRepository(SnapshotOrdenesPorEjecucion)
+    private readonly snapshotRepository: Repository<SnapshotOrdenesPorEjecucion>,
+  ) {}
 
   async getSeguimientoDiario(
     filters: FilterSeguimientoDiarioDto,
   ): Promise<SeguimientoDiarioResponseDto[]> {
-    const qb = this.dataSource
-      .createQueryBuilder()
-      .from('view_detalle_ordenes_general', 'vdog')
-      .select('DATE(vdog.fecha_reporte)', 'fechaSeguimiento')
+    const qb = this.snapshotRepository
+      .createQueryBuilder('snapshot')
+      .select('snapshot.fechaSnapshot', 'fechaSeguimiento')
       .addSelect(
-        `COUNT(*) FILTER (
-          WHERE vdog.estado_entre_15_20 > 0
-            AND vdog.estado NOT IN (:...estadosExcluidos)
-        )::int`,
+        'COALESCE(SUM(snapshot.totalEntre1520), 0)::int',
         'totalEntre15y20',
       )
       .addSelect(
-        `COUNT(*) FILTER (
-          WHERE vdog.estado_entre_7_15 > 0
-            AND vdog.estado NOT IN (:...estadosExcluidos)
-        )::int`,
+        'COALESCE(SUM(snapshot.totalEntre715), 0)::int',
         'totalEntre7y15',
       )
       .addSelect(
-        `COUNT(*) FILTER (
-          WHERE vdog.guias_mayor_a_2_dias > 0
-            AND vdog.estado IN (:...estadosGuiasMayorA2Dias)
-        )::int`,
+        'COALESCE(SUM(snapshot.totalGuiasMayorA2Dias), 0)::int',
         'totalMayorA2Dias',
       )
       .addSelect(
-        `COUNT(*) FILTER (
-          WHERE vdog.estado_mayor_20 > 0
-            AND vdog.estado NOT IN (:...estadosExcluidos)
-        )::int`,
+        'COALESCE(SUM(snapshot.totalMayor20), 0)::int',
         'totalMayorA20Dias',
       )
-      .where(
-        `vdog.guias_mayor_a_2_dias > 0
-         OR vdog.estado_entre_15_20 > 0
-         OR vdog.estado_entre_7_15 > 0
-         OR vdog.estado_mayor_20 > 0`,
-      )
-      .groupBy('DATE(vdog.fecha_reporte)')
-      .orderBy('DATE(vdog.fecha_reporte)', 'ASC')
-      .setParameter(
-        'estadosGuiasMayorA2Dias',
-        ReportesService.ESTADOS_GUIAS_MAYOR_A_2_DIAS,
-      )
-      .setParameter('estadosExcluidos', ReportesService.ESTADOS_EXCLUIDOS);
+      .groupBy('snapshot.fechaSnapshot')
+      .orderBy('snapshot.fechaSnapshot', 'ASC');
 
     if (filters.fechaDesde) {
-      qb.andWhere('DATE(vdog.fecha_reporte) >= :fechaDesde', {
+      qb.andWhere('snapshot.fechaSnapshot >= :fechaDesde', {
         fechaDesde: filters.fechaDesde,
       });
     }
 
     if (filters.fechaHasta) {
-      qb.andWhere('DATE(vdog.fecha_reporte) <= :fechaHasta', {
+      qb.andWhere('snapshot.fechaSnapshot <= :fechaHasta', {
         fechaHasta: filters.fechaHasta,
       });
     }
 
     if (filters.plataforma) {
-      qb.andWhere('vdog.plataforma = :plataforma', {
+      qb.andWhere('snapshot.plataforma = :plataforma', {
         plataforma: filters.plataforma,
       });
     }
@@ -107,6 +81,66 @@ export class ReportesService {
     const rows = await qb.getRawMany<SeguimientoDiarioRawRow>();
 
     return rows.map((row) => this.toSeguimientoDiarioResponse(row));
+  }
+
+  async getNovedadesGuiasMayorA2Dias(): Promise<
+    NovedadOcurrenciaResponseDto[]
+  > {
+    const rows = await this.snapshotRepository.manager.query(
+      `
+        SELECT
+          cn.nombre,
+          COUNT(ov.id_orden)::int AS total
+        FROM orden_venta ov
+        JOIN (
+          SELECT DISTINCT ON (n.id_orden)
+            n.id_orden,
+            n.id_categoria,
+            n.id_novedad
+          FROM novedad n
+          ORDER BY n.id_orden, n.id_novedad DESC
+        ) ult_novedad ON ult_novedad.id_orden = ov.id_orden
+        JOIN categoria_novedad cn ON cn.id_categoria = ult_novedad.id_categoria
+        WHERE ov.fecha_reporte < CURRENT_TIMESTAMP - INTERVAL '2 days'
+          AND ov.estatus = ANY($1)
+        GROUP BY cn.nombre
+        ORDER BY cn.nombre
+      `,
+      [ReportesService.ESTATUS_GUIAS_MAYOR_A_2_DIAS],
+    );
+
+    return rows.map((row: NovedadOcurrenciaRawRow) =>
+      this.toNovedadOcurrenciaResponse(row),
+    );
+  }
+
+  async getNovedadesMayorA20Dias(): Promise<NovedadOcurrenciaResponseDto[]> {
+    const rows = await this.snapshotRepository.manager.query(
+      `
+        SELECT
+          cn.nombre,
+          COUNT(ov.id_orden)::int AS total
+        FROM orden_venta ov
+        JOIN (
+          SELECT DISTINCT ON (n.id_orden)
+            n.id_orden,
+            n.id_categoria,
+            n.id_novedad
+          FROM novedad n
+          ORDER BY n.id_orden, n.id_novedad DESC
+        ) ult_novedad ON ult_novedad.id_orden = ov.id_orden
+        JOIN categoria_novedad cn ON cn.id_categoria = ult_novedad.id_categoria
+        WHERE ov.fecha_reporte < CURRENT_TIMESTAMP - INTERVAL '20 days'
+          AND ov.estatus <> ALL($1)
+        GROUP BY cn.nombre
+        ORDER BY cn.nombre
+      `,
+      [ReportesService.ESTATUS_EXCLUIDOS_MAYOR_A_20_DIAS],
+    );
+
+    return rows.map((row: NovedadOcurrenciaRawRow) =>
+      this.toNovedadOcurrenciaResponse(row),
+    );
   }
 
   private toSeguimientoDiarioResponse(
@@ -120,10 +154,7 @@ export class ReportesService {
     const totalGuiasMayorA2Dias = this.toNumber(row.totalMayorA2Dias);
     const totalMayorA20 = this.toNumber(row.totalMayorA20Dias);
     const totalAcumulado =
-      totalEntre15y20 +
-      totalEntre7y15 +
-      totalGuiasMayorA2Dias +
-      totalMayorA20;
+      totalEntre15y20 + totalEntre7y15 + totalGuiasMayorA2Dias + totalMayorA20;
 
     return {
       fechaSeguimiento,
@@ -134,6 +165,15 @@ export class ReportesService {
       totalMayorA20,
       sumaTotal: Number((totalAcumulado / 4).toFixed(2)),
       totalAcumulado,
+    };
+  }
+
+  private toNovedadOcurrenciaResponse(
+    row: NovedadOcurrenciaRawRow,
+  ): NovedadOcurrenciaResponseDto {
+    return {
+      nombre: row.nombre,
+      total: this.toNumber(row.total),
     };
   }
 
