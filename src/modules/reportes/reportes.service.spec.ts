@@ -10,18 +10,9 @@ describe('ReportesService', () => {
     query: jest.fn(),
   };
 
-  const mockQueryBuilder = {
-    select: jest.fn().mockReturnThis(),
-    addSelect: jest.fn().mockReturnThis(),
-    andWhere: jest.fn().mockReturnThis(),
-    groupBy: jest.fn().mockReturnThis(),
-    orderBy: jest.fn().mockReturnThis(),
-    getRawMany: jest.fn(),
-  };
-
   beforeEach(async () => {
     jest.clearAllMocks();
-    mockQueryBuilder.getRawMany.mockResolvedValue([
+    mockManager.query.mockResolvedValue([
       {
         fechaSeguimiento: '2026-01-22',
         totalEntre15y20: 2,
@@ -37,7 +28,6 @@ describe('ReportesService', () => {
         {
           provide: getRepositoryToken(SnapshotOrdenesPorEjecucion),
           useValue: {
-            createQueryBuilder: jest.fn(() => mockQueryBuilder),
             manager: mockManager,
           },
         },
@@ -75,17 +65,34 @@ describe('ReportesService', () => {
       plataforma: 'shopify',
     });
 
-    expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
-      'snapshot.fechaSnapshot >= :fechaDesde',
-      { fechaDesde: '2026-01-01' },
+    expect(mockManager.query).toHaveBeenCalledWith(
+      expect.stringContaining('s.fecha_snapshot >= $1'),
+      ['2026-01-01', '2026-01-31', 'shopify'],
     );
-    expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
-      'snapshot.fechaSnapshot <= :fechaHasta',
-      { fechaHasta: '2026-01-31' },
+    expect(mockManager.query).toHaveBeenCalledWith(
+      expect.stringContaining('s.fecha_snapshot <= $2'),
+      ['2026-01-01', '2026-01-31', 'shopify'],
     );
-    expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
-      'snapshot.plataforma = :plataforma',
-      { plataforma: 'shopify' },
+    expect(mockManager.query).toHaveBeenCalledWith(
+      expect.stringContaining('s.plataforma = $3'),
+      ['2026-01-01', '2026-01-31', 'shopify'],
+    );
+  });
+
+  it('should rank snapshots by fecha and plataforma using the most recent record', async () => {
+    await service.getSeguimientoDiario({});
+
+    expect(mockManager.query).toHaveBeenCalledWith(
+      expect.stringContaining('ROW_NUMBER() OVER'),
+      [],
+    );
+    expect(mockManager.query).toHaveBeenCalledWith(
+      expect.stringContaining('PARTITION BY s.fecha_snapshot, s.plataforma'),
+      [],
+    );
+    expect(mockManager.query).toHaveBeenCalledWith(
+      expect.stringContaining('ORDER BY s.created_at DESC, s.id DESC'),
+      [],
     );
   });
 

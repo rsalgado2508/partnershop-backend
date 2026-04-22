@@ -38,47 +38,51 @@ export class ReportesService {
   async getSeguimientoDiario(
     filters: FilterSeguimientoDiarioDto,
   ): Promise<SeguimientoDiarioResponseDto[]> {
-    const qb = this.snapshotRepository
-      .createQueryBuilder('snapshot')
-      .select('snapshot.fechaSnapshot', 'fechaSeguimiento')
-      .addSelect(
-        'COALESCE(SUM(snapshot.totalEntre1520), 0)::int',
-        'totalEntre15y20',
-      )
-      .addSelect(
-        'COALESCE(SUM(snapshot.totalEntre715), 0)::int',
-        'totalEntre7y15',
-      )
-      .addSelect(
-        'COALESCE(SUM(snapshot.totalGuiasMayorA2Dias), 0)::int',
-        'totalMayorA2Dias',
-      )
-      .addSelect(
-        'COALESCE(SUM(snapshot.totalMayor20), 0)::int',
-        'totalMayorA20Dias',
-      )
-      .groupBy('snapshot.fechaSnapshot')
-      .orderBy('snapshot.fechaSnapshot', 'ASC');
+    const params: Array<string> = [];
+    const whereClauses: string[] = [];
 
     if (filters.fechaDesde) {
-      qb.andWhere('snapshot.fechaSnapshot >= :fechaDesde', {
-        fechaDesde: filters.fechaDesde,
-      });
+      params.push(filters.fechaDesde);
+      whereClauses.push(`s.fecha_snapshot >= $${params.length}`);
     }
 
     if (filters.fechaHasta) {
-      qb.andWhere('snapshot.fechaSnapshot <= :fechaHasta', {
-        fechaHasta: filters.fechaHasta,
-      });
+      params.push(filters.fechaHasta);
+      whereClauses.push(`s.fecha_snapshot <= $${params.length}`);
     }
 
-    if (filters.plataforma) {
-      qb.andWhere('snapshot.plataforma = :plataforma', {
-        plataforma: filters.plataforma,
-      });
-    }
+    const whereSql =
+      whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
-    const rows = await qb.getRawMany<SeguimientoDiarioRawRow>();
+    const rows = await this.snapshotRepository.manager.query(
+      `
+        WITH snapshots_ranked AS (
+          SELECT
+            s.fecha_snapshot,
+            s.total_entre_15_20,
+            s.total_entre_7_15,
+            s.total_guias_mayor_a_2_dias,
+            s.total_mayor_20,
+            ROW_NUMBER() OVER (
+              PARTITION BY s.fecha_snapshot
+              ORDER BY s.created_at DESC, s.id DESC
+            ) AS rn
+          FROM snapshot_ordenes_por_ejecucion s
+          ${whereSql}
+        )
+        SELECT
+          sr.fecha_snapshot AS "fechaSeguimiento",
+          COALESCE(SUM(sr.total_entre_15_20), 0)::int AS "totalEntre15y20",
+          COALESCE(SUM(sr.total_entre_7_15), 0)::int AS "totalEntre7y15",
+          COALESCE(SUM(sr.total_guias_mayor_a_2_dias), 0)::int AS "totalMayorA2Dias",
+          COALESCE(SUM(sr.total_mayor_20), 0)::int AS "totalMayorA20Dias"
+        FROM snapshots_ranked sr
+        WHERE sr.rn = 1
+        GROUP BY sr.fecha_snapshot
+        ORDER BY sr.fecha_snapshot ASC
+      `,
+      params,
+    );
 
     return rows.map((row) => this.toSeguimientoDiarioResponse(row));
   }

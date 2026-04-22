@@ -11,9 +11,6 @@ export class SnapshotOrdenesPorEjecucion {
   @Column({ name: 'fecha_snapshot', type: 'date' })
   fechaSnapshot: string;
 
-  @Column({ name: 'plataforma', type: 'text' })
-  plataforma: string;
-
   @Column({ name: 'total_entre_7_15', type: 'integer', default: 0 })
   totalEntre715: number;
 
