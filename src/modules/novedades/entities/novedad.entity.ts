@@ -46,7 +46,7 @@ export class Novedad {
 
   @ManyToOne(() => OrdenVenta)
   @JoinColumn({ name: 'id_orden' })
-  orden: OrdenVenta;
+  orden?: OrdenVenta;
 
   @ManyToOne(() => CategoriaNovedad, (cat) => cat.novedades)
   @JoinColumn({ name: 'id_categoria' })

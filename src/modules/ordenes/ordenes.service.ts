@@ -1,12 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import { OrdenVenta } from './entities';
+import { DetalleOrden, OrdenVenta, Producto } from './entities';
 import { FilterOrdenesDto } from './dto/filter-ordenes.dto';
 import { PaginatedResponseDto } from '../../common/dto/paginated-response.dto';
 import { Cliente } from './entities/cliente.entity';
 import { Ciudad } from './entities/ciudad.entity';
 import { Transportadora } from './entities/transportadora.entity';
+import { Novedad } from '../novedades/entities/novedad.entity';
+import { CategoriaNovedad } from '../categorias-novedad/entities/categoria-novedad.entity';
 
 type ViewOrdenRow = {
   id_orden: number;
@@ -25,6 +27,17 @@ type ViewOrdenRow = {
   cantidad: string | number | null;
   cliente: string | null;
   plataforma: string | null;
+  novedad_id_novedad?: number | null;
+  novedad_id_categoria?: number | null;
+  novedad_descripcion?: string | null;
+  novedad_estado?: string | null;
+  novedad_usuario_registro?: string | null;
+  novedad_fecha_registro?: Date | string | null;
+  novedad_fecha_actualizacion?: Date | string | null;
+  novedad_categoria_nombre?: string | null;
+  novedad_categoria_descripcion?: string | null;
+  novedad_categoria_activo?: boolean | null;
+  novedad_categoria_fecha_creacion?: Date | string | null;
 };
 
 type SqlCondition = {
@@ -168,8 +181,39 @@ export class OrdenesService {
     const skip = (page - 1) * limit;
     const where = this.buildFindAllWhereClause(filterDto);
     const selectSql = `
-      SELECT ov.*
+      SELECT
+        ov.*,
+        ult_nov.id_novedad AS novedad_id_novedad,
+        ult_nov.id_categoria AS novedad_id_categoria,
+        ult_nov.descripcion AS novedad_descripcion,
+        ult_nov.estado AS novedad_estado,
+        ult_nov.usuario_registro AS novedad_usuario_registro,
+        ult_nov.fecha_registro AS novedad_fecha_registro,
+        ult_nov.fecha_actualizacion AS novedad_fecha_actualizacion,
+        ult_nov.categoria_nombre AS novedad_categoria_nombre,
+        ult_nov.categoria_descripcion AS novedad_categoria_descripcion,
+        ult_nov.categoria_activo AS novedad_categoria_activo,
+        ult_nov.categoria_fecha_creacion AS novedad_categoria_fecha_creacion
       FROM view_ordenes ov
+      LEFT JOIN LATERAL (
+        SELECT
+          n.id_novedad,
+          n.id_categoria,
+          n.descripcion,
+          n.estado,
+          n.usuario_registro,
+          n.fecha_registro,
+          n.fecha_actualizacion,
+          cn.nombre AS categoria_nombre,
+          cn.descripcion AS categoria_descripcion,
+          cn.activo AS categoria_activo,
+          cn.fecha_creacion AS categoria_fecha_creacion
+        FROM novedad n
+        LEFT JOIN categoria_novedad cn ON cn.id_categoria = n.id_categoria
+        WHERE n.id_orden = ov.id_orden
+        ORDER BY n.fecha_registro DESC, n.id_novedad DESC
+        LIMIT 1
+      ) ult_nov ON TRUE
       ${where.clause}
       ORDER BY ov.fecha_reporte DESC, ov.id_orden DESC
       LIMIT $${where.values.length + 1}
@@ -191,7 +235,11 @@ export class OrdenesService {
   }
 
   private toOrdenVenta(row: ViewOrdenRow): OrdenVenta {
-    return {
+    const producto: Producto = {
+      idProducto: row.id_producto ?? 0,
+      nombreOficial: this.toString(row.producto),
+    };
+    const ordenVenta: OrdenVenta = {
       idOrden: row.id_orden,
       idCliente: 0,
       idCiudad: 0,
@@ -211,8 +259,20 @@ export class OrdenesService {
       cliente: this.toCliente(row.cliente),
       ciudad: this.toCiudad(row.nombre_ciudad, row.departamento),
       transportadora: this.toTransportadora(row.transportadora),
+      novedad: this.toNovedad(row),
       detalles: [],
     };
+
+    const detalle: DetalleOrden = {
+      idDetalle: 0,
+      idOrden: row.id_orden,
+      idProducto: row.id_producto ?? 0,
+      cantidad: this.toNumber(row.cantidad),
+      producto: producto,
+    };
+
+    ordenVenta.detalles = [detalle];
+    return ordenVenta;
   }
 
   private toCliente(nombreCliente: string | null): Cliente {
@@ -243,6 +303,34 @@ export class OrdenesService {
     return {
       idTransportadora: 0,
       nombre: this.toString(nombreTransportadora),
+    };
+  }
+
+  private toNovedad(row: ViewOrdenRow): Novedad | null {
+    if (!row.novedad_id_novedad) {
+      return null;
+    }
+
+    const categoria: CategoriaNovedad = {
+      idCategoria: row.novedad_id_categoria ?? 0,
+      nombre: this.toString(row.novedad_categoria_nombre ?? null),
+      descripcion: this.toString(row.novedad_categoria_descripcion ?? null),
+      activo: row.novedad_categoria_activo ?? false,
+      fechaCreacion: this.toDate(row.novedad_categoria_fecha_creacion ?? null),
+      novedades: [],
+    };
+
+    return {
+      idNovedad: row.novedad_id_novedad,
+      idOrden: row.id_orden,
+      idCategoria: row.novedad_id_categoria ?? 0,
+      descripcion: this.toString(row.novedad_descripcion ?? null),
+      estado: this.toString(row.novedad_estado ?? null) as Novedad['estado'],
+      usuarioRegistro: this.toString(row.novedad_usuario_registro ?? null),
+      fechaRegistro: this.toDate(row.novedad_fecha_registro ?? null),
+      fechaActualizacion: this.toDate(row.novedad_fecha_actualizacion ?? null),
+      categoria,
+      historial: [],
     };
   }
 
@@ -277,6 +365,13 @@ export class OrdenesService {
     if (!orden) {
       throw new NotFoundException(`Orden con ID ${idOrden} no encontrada`);
     }
+
+    orden.novedad =
+      (await this.dataSource.getRepository(Novedad).findOne({
+        where: { idOrden },
+        relations: ['categoria'],
+        order: { fechaRegistro: 'DESC', idNovedad: 'DESC' },
+      })) ?? null;
 
     return orden;
   }

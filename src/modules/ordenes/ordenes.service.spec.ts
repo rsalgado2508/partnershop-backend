@@ -30,6 +30,17 @@ const mockViewOrden = {
   cantidad: '1',
   cliente: 'Cliente test',
   plataforma: 'MercadoLibre',
+  novedad_id_novedad: 55,
+  novedad_id_categoria: 3,
+  novedad_descripcion: 'Cliente no responde',
+  novedad_estado: 'ABIERTA',
+  novedad_usuario_registro: 'tester',
+  novedad_fecha_registro: '2026-04-21T10:00:00.000Z',
+  novedad_fecha_actualizacion: '2026-04-21T11:00:00.000Z',
+  novedad_categoria_nombre: 'CLIENTE',
+  novedad_categoria_descripcion: 'Novedad asociada al cliente',
+  novedad_categoria_activo: true,
+  novedad_categoria_fecha_creacion: '2026-04-01T00:00:00.000Z',
 };
 
 describe('OrdenesService', () => {
@@ -38,6 +49,11 @@ describe('OrdenesService', () => {
 
   const mockDataSource = {
     query: jest.fn(),
+    getRepository: jest.fn(),
+  };
+
+  const mockNovedadRepository = {
+    findOne: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -45,6 +61,21 @@ describe('OrdenesService', () => {
     mockDataSource.query
       .mockResolvedValueOnce([mockViewOrden])
       .mockResolvedValueOnce([{ total: 1 }]);
+    mockDataSource.getRepository.mockReturnValue(mockNovedadRepository);
+    mockNovedadRepository.findOne.mockResolvedValue({
+      idNovedad: 55,
+      idOrden: 1,
+      idCategoria: 3,
+      descripcion: 'Cliente no responde',
+      estado: 'ABIERTA',
+      usuarioRegistro: 'tester',
+      fechaRegistro: new Date('2026-04-21T10:00:00.000Z'),
+      fechaActualizacion: new Date('2026-04-21T11:00:00.000Z'),
+      categoria: {
+        idCategoria: 3,
+        nombre: 'CLIENTE',
+      },
+    });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -96,6 +127,25 @@ describe('OrdenesService', () => {
           transportadora: expect.objectContaining({
             nombre: 'Coordinadora',
           }),
+          novedad: expect.objectContaining({
+            idNovedad: 55,
+            descripcion: 'Cliente no responde',
+            categoria: expect.objectContaining({
+              idCategoria: 3,
+              nombre: 'CLIENTE',
+            }),
+          }),
+          detalles: [
+            expect.objectContaining({
+              idOrden: 1,
+              idProducto: 10,
+              cantidad: 1,
+              producto: expect.objectContaining({
+                idProducto: 10,
+                nombreOficial: 'Producto test',
+              }),
+            }),
+          ],
         }),
       ]);
       expect(result.total).toBe(1);
@@ -189,6 +239,11 @@ describe('OrdenesService', () => {
 
       const result = await service.findOne(1);
       expect(result.idOrden).toBe(1);
+      expect(mockNovedadRepository.findOne).toHaveBeenCalledWith({
+        where: { idOrden: 1 },
+        relations: ['categoria'],
+        order: { fechaRegistro: 'DESC', idNovedad: 'DESC' },
+      });
     });
 
     it('should throw NotFoundException if order not found', async () => {

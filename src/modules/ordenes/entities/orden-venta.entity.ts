@@ -10,6 +10,7 @@ import { Cliente } from './cliente.entity';
 import { Ciudad } from './ciudad.entity';
 import { Transportadora } from './transportadora.entity';
 import { DetalleOrden } from './detalle-orden.entity';
+import { Novedad } from 'src/modules/novedades/entities/novedad.entity';
 
 @Entity({ name: 'orden_venta', synchronize: false })
 export class OrdenVenta {
@@ -68,6 +69,8 @@ export class OrdenVenta {
   @ManyToOne(() => Ciudad)
   @JoinColumn({ name: 'id_ciudad' })
   ciudad: Ciudad;
+
+  novedad: Novedad | null;
 
   @ManyToOne(() => Transportadora)
   @JoinColumn({ name: 'id_transportadora' })

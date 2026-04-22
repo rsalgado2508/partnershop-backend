@@ -1,10 +1,13 @@
 import { Controller, Get, Param, ParseIntPipe, Query } from '@nestjs/common';
-import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { OrdenesService } from './ordenes.service';
 import {
   FilterOrdenesDto,
   RANGOS_FECHA_REPORTE,
 } from './dto/filter-ordenes.dto';
+import { PaginatedOrdenesResponseDto } from './dto/paginated-ordenes-response.dto';
+import { OrdenVentaResponseDto } from './dto/orden-venta-response.dto';
+import { Public } from 'src/common/decorators/public.decorator';
 
 @ApiTags('Órdenes')
 @Controller('ordenes')
@@ -61,12 +64,15 @@ export class OrdenesController {
     description:
       'Filtra por rango relativo de `fechaReporte`. El valor `guias_mayor_a_2_dias` además restringe a los estados `GUIA_GENERADA`, `ENTREGADO A TRANSPORTADORA`, `POR RECOLECTAR`, `ALISTADO` y `PENDIENTE`.',
   })
+  @Public()
+  @ApiOkResponse({ type: PaginatedOrdenesResponseDto })
   findAll(@Query() filterDto: FilterOrdenesDto) {
     return this.ordenesService.findAll(filterDto);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Obtener detalle de una orden' })
+  @ApiOkResponse({ type: OrdenVentaResponseDto })
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.ordenesService.findOne(id);
   }
