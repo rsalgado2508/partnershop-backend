@@ -62,6 +62,9 @@ export class OrdenesService {
     'RECHAZADO',
     'GUIA_ANULADA',
     'ANULADO',
+    'INDEMNIZACIÓN PAGADA',
+    'INDEMNIZADA',
+    'INDEMNIZADA POR DROPI',
   ];
 
   constructor(
@@ -215,7 +218,7 @@ export class OrdenesService {
         LIMIT 1
       ) ult_nov ON TRUE
       ${where.clause}
-      ORDER BY ov.fecha_reporte DESC, ov.id_orden DESC
+      ORDER BY ov.fecha_reporte ASC, ov.id_orden DESC
       LIMIT $${where.values.length + 1}
       OFFSET $${where.values.length + 2}
     `;

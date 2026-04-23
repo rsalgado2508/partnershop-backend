@@ -48,8 +48,8 @@ export const MENU_POR_ROL: Record<Role, MenuItem[]> = {
     MENU_DASHBOARD,
     MENU_ORDERS,
     MENU_ORDERS_TRACKING,
-    MENU_ISSUE_CATEGORY,
-    MENU_USERS,
+    //MENU_ISSUE_CATEGORY,
+   // MENU_USERS,
   ],
   [Role.OPERATIONS_ANALYST]: [
     MENU_DASHBOARD,
