@@ -41,7 +41,7 @@ describe('ReportesService', () => {
     expect(service).toBeDefined();
   });
 
-  it('should aggregate snapshots by fechaSnapshot and keep dto shape', async () => {
+  it('should return latest execution snapshots and keep dto shape', async () => {
     const result = await service.getSeguimientoDiario({});
 
     expect(result).toEqual([
@@ -79,19 +79,19 @@ describe('ReportesService', () => {
     );
   });
 
-  it('should rank snapshots by fecha and plataforma using the most recent record', async () => {
+  it('should use the latest log_cargue_id and order by fecha snapshot', async () => {
     await service.getSeguimientoDiario({});
 
     expect(mockManager.query).toHaveBeenCalledWith(
-      expect.stringContaining('ROW_NUMBER() OVER'),
+      expect.stringContaining('s.log_cargue_id = ('),
       [],
     );
     expect(mockManager.query).toHaveBeenCalledWith(
-      expect.stringContaining('PARTITION BY s.fecha_snapshot, s.plataforma'),
+      expect.stringContaining('SELECT MAX(log_cargue_id)'),
       [],
     );
     expect(mockManager.query).toHaveBeenCalledWith(
-      expect.stringContaining('ORDER BY s.created_at DESC, s.id DESC'),
+      expect.stringContaining('ORDER BY s.fecha_snapshot ASC'),
       [],
     );
   });

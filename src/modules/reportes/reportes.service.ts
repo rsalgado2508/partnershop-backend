@@ -51,38 +51,29 @@ export class ReportesService {
       whereClauses.push(`s.fecha_snapshot <= $${params.length}`);
     }
 
-    const whereSql =
+    if (filters.plataforma) {
+      params.push(filters.plataforma);
+      whereClauses.push(`s.plataforma = $${params.length}`);
+    }
+
+    const filtersSql =
       whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
-    const rows = await this.snapshotRepository.manager.query(
-      `
-        WITH snapshots_ranked AS (
-          SELECT
-            s.fecha_snapshot,
-            s.total_entre_15_20,
-            s.total_entre_7_15,
-            s.total_guias_mayor_a_2_dias,
-            s.total_mayor_20,
-            ROW_NUMBER() OVER (
-              PARTITION BY s.fecha_snapshot
-              ORDER BY s.created_at DESC, s.id DESC
-            ) AS rn
-          FROM snapshot_ordenes_por_ejecucion s
-          ${whereSql}
-        )
-        SELECT
-          sr.fecha_snapshot AS "fechaSeguimiento",
-          COALESCE(SUM(sr.total_entre_15_20), 0)::int AS "totalEntre15y20",
-          COALESCE(SUM(sr.total_entre_7_15), 0)::int AS "totalEntre7y15",
-          COALESCE(SUM(sr.total_guias_mayor_a_2_dias), 0)::int AS "totalMayorA2Dias",
-          COALESCE(SUM(sr.total_mayor_20), 0)::int AS "totalMayorA20Dias"
-        FROM snapshots_ranked sr
-        WHERE sr.rn = 1
-        GROUP BY sr.fecha_snapshot
-        ORDER BY sr.fecha_snapshot ASC
-      `,
-      params,
-    );
+    const query = `
+        SELECT DISTINCT ON (s.fecha_snapshot)
+            s.fecha_snapshot AS "fechaSeguimiento",
+            s.total_entre_15_20 AS "totalEntre15y20",
+            s.total_entre_7_15 AS "totalEntre7y15",
+            s.total_guias_mayor_a_2_dias AS "totalMayorA2Dias",
+            s.total_mayor_20 AS "totalMayorA20Dias"
+        FROM snapshot_ordenes_por_ejecucion s
+        ${filtersSql}
+        ORDER BY s.fecha_snapshot, s.log_cargue_id DESC
+      `;
+
+    const rows = await this.snapshotRepository.manager.query<
+      SeguimientoDiarioRawRow[]
+    >(query, params);
 
     return rows.map((row) => this.toSeguimientoDiarioResponse(row));
   }
@@ -90,7 +81,9 @@ export class ReportesService {
   async getNovedadesGuiasMayorA2Dias(): Promise<
     NovedadOcurrenciaResponseDto[]
   > {
-    const rows = await this.snapshotRepository.manager.query(
+    const rows = await this.snapshotRepository.manager.query<
+      NovedadOcurrenciaRawRow[]
+    >(
       `
         SELECT
           cn.nombre,
@@ -119,7 +112,9 @@ export class ReportesService {
   }
 
   async getNovedadesMayorA20Dias(): Promise<NovedadOcurrenciaResponseDto[]> {
-    const rows = await this.snapshotRepository.manager.query(
+    const rows = await this.snapshotRepository.manager.query<
+      NovedadOcurrenciaRawRow[]
+    >(
       `
         SELECT
           cn.nombre,
