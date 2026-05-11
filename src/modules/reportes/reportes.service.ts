@@ -23,7 +23,7 @@ type NovedadOcurrenciaRawRow = {
 export class ReportesService {
   private static readonly ESTATUS_GUIAS_MAYOR_A_2_DIAS = [16, 18, 22, 35, 46];
 
-  private static readonly ESTATUS_EXCLUIDOS_MAYOR_A_20_DIAS = [15, 5, 3, 23];
+  private static readonly ESTATUS_EXCLUIDOS_MAYOR_A_20_DIAS = [15, 5, 3, 23, 61];
 
   private static readonly DIAS_SEMANA = new Intl.DateTimeFormat('es-ES', {
     weekday: 'long',
