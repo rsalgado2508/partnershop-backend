@@ -65,6 +65,7 @@ export class OrdenesService {
     'INDEMNIZACIÓN PAGADA',
     'INDEMNIZADA',
     'INDEMNIZADA POR DROPI',
+    'INDEMNIZADA POR PARTNERSHOP',
   ];
 
   constructor(
