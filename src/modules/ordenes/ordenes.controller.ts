@@ -57,6 +57,34 @@ export class OrdenesController {
     description: 'Filtra por plataforma.',
   })
   @ApiQuery({
+    name: 'idCategoriaNovedad',
+    required: false,
+    type: Number,
+    example: 3,
+    description: 'Filtra por la categoría de la última novedad registrada.',
+  })
+  @ApiQuery({
+    name: 'transportadora',
+    required: false,
+    type: String,
+    example: 'Coordinadora',
+    description: 'Filtra por nombre de transportadora.',
+  })
+  @ApiQuery({
+    name: 'fechaReporteDesde',
+    required: false,
+    type: String,
+    example: '2026-05-01',
+    description: 'Fecha inicial de reporte en formato YYYY-MM-DD.',
+  })
+  @ApiQuery({
+    name: 'fechaReporteHasta',
+    required: false,
+    type: String,
+    example: '2026-05-22',
+    description: 'Fecha final de reporte en formato YYYY-MM-DD.',
+  })
+  @ApiQuery({
     name: 'rangoFechaReporte',
     required: false,
     enum: RANGOS_FECHA_REPORTE,
@@ -68,6 +96,13 @@ export class OrdenesController {
   @ApiOkResponse({ type: PaginatedOrdenesResponseDto })
   findAll(@Query() filterDto: FilterOrdenesDto) {
     return this.ordenesService.findAll(filterDto);
+  }
+
+  @Get('transportadoras')
+  @ApiOperation({ summary: 'Listar transportadoras disponibles' })
+  @Public()
+  findTransportadoras() {
+    return this.ordenesService.findTransportadoras();
   }
 
   @Get(':id')

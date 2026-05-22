@@ -45,6 +45,28 @@ type SqlCondition = {
   values: Array<string | number>;
 };
 
+const ULTIMA_NOVEDAD_JOIN_SQL = `
+  LEFT JOIN LATERAL (
+    SELECT
+      n.id_novedad,
+      n.id_categoria,
+      n.descripcion,
+      n.estado,
+      n.usuario_registro,
+      n.fecha_registro,
+      n.fecha_actualizacion,
+      cn.nombre AS categoria_nombre,
+      cn.descripcion AS categoria_descripcion,
+      cn.activo AS categoria_activo,
+      cn.fecha_creacion AS categoria_fecha_creacion
+    FROM novedad n
+    LEFT JOIN categoria_novedad cn ON cn.id_categoria = n.id_categoria
+    WHERE n.id_orden = ov.id_orden
+    ORDER BY n.fecha_registro DESC, n.id_novedad DESC
+    LIMIT 1
+  ) ult_nov ON TRUE
+`;
+
 @Injectable()
 export class OrdenesService {
   private static readonly ESTATUS_GUIAS_MAYOR_A_2_DIAS = [
@@ -71,8 +93,16 @@ export class OrdenesService {
   constructor(
     @InjectRepository(OrdenVenta)
     private readonly ordenRepository: Repository<OrdenVenta>,
+    @InjectRepository(Transportadora)
+    private readonly transportadoraRepository: Repository<Transportadora>,
     private readonly dataSource: DataSource,
   ) {}
+
+  async findTransportadoras(): Promise<Transportadora[]> {
+    return this.transportadoraRepository.find({
+      order: { nombre: 'ASC' },
+    });
+  }
 
   private getRangoFechaReporteCondition(
     rangoFechaReporte: FilterOrdenesDto['rangoFechaReporte'],
@@ -156,6 +186,28 @@ export class OrdenesService {
       conditions.push(`ov.plataforma = $${values.length}`);
     }
 
+    if (filterDto.idCategoriaNovedad) {
+      values.push(filterDto.idCategoriaNovedad);
+      conditions.push(`ult_nov.id_categoria = $${values.length}`);
+    }
+
+    if (filterDto.transportadora) {
+      values.push(`%${filterDto.transportadora}%`);
+      conditions.push(`ov.transportadora ILIKE $${values.length}`);
+    }
+
+    if (filterDto.fechaReporteDesde) {
+      values.push(filterDto.fechaReporteDesde);
+      conditions.push(`ov.fecha_reporte >= $${values.length}::date`);
+    }
+
+    if (filterDto.fechaReporteHasta) {
+      values.push(filterDto.fechaReporteHasta);
+      conditions.push(
+        `ov.fecha_reporte < ($${values.length}::date + INTERVAL '1 day')`,
+      );
+    }
+
     if (filterDto.rangoFechaReporte) {
       const rango = this.getRangoFechaReporteCondition(
         filterDto.rangoFechaReporte,
@@ -199,25 +251,7 @@ export class OrdenesService {
         ult_nov.categoria_activo AS novedad_categoria_activo,
         ult_nov.categoria_fecha_creacion AS novedad_categoria_fecha_creacion
       FROM view_ordenes ov
-      LEFT JOIN LATERAL (
-        SELECT
-          n.id_novedad,
-          n.id_categoria,
-          n.descripcion,
-          n.estado,
-          n.usuario_registro,
-          n.fecha_registro,
-          n.fecha_actualizacion,
-          cn.nombre AS categoria_nombre,
-          cn.descripcion AS categoria_descripcion,
-          cn.activo AS categoria_activo,
-          cn.fecha_creacion AS categoria_fecha_creacion
-        FROM novedad n
-        LEFT JOIN categoria_novedad cn ON cn.id_categoria = n.id_categoria
-        WHERE n.id_orden = ov.id_orden
-        ORDER BY n.fecha_registro DESC, n.id_novedad DESC
-        LIMIT 1
-      ) ult_nov ON TRUE
+      ${ULTIMA_NOVEDAD_JOIN_SQL}
       ${where.clause}
       ORDER BY ov.fecha_reporte ASC, ov.id_orden DESC
       LIMIT $${where.values.length + 1}
@@ -226,6 +260,7 @@ export class OrdenesService {
     const countSql = `
       SELECT COUNT(*)::int AS total
       FROM view_ordenes ov
+      ${ULTIMA_NOVEDAD_JOIN_SQL}
       ${where.clause}
     `;
     const [rows, countRows] = await Promise.all([

@@ -1,5 +1,13 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  IsDateString,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Min,
+} from 'class-validator';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 
 export const RANGOS_FECHA_REPORTE = [
@@ -29,6 +37,34 @@ export class FilterOrdenesDto extends PaginationDto {
   @IsOptional()
   @IsString()
   plataforma?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filtrar por ID de categoría de la última novedad',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  idCategoriaNovedad?: number;
+
+  @ApiPropertyOptional({ description: 'Filtrar por nombre de transportadora' })
+  @IsOptional()
+  @IsString()
+  transportadora?: string;
+
+  @ApiPropertyOptional({
+    description: 'Fecha inicial de reporte en formato YYYY-MM-DD',
+  })
+  @IsOptional()
+  @IsDateString()
+  fechaReporteDesde?: string;
+
+  @ApiPropertyOptional({
+    description: 'Fecha final de reporte en formato YYYY-MM-DD',
+  })
+  @IsOptional()
+  @IsDateString()
+  fechaReporteHasta?: string;
 
   @ApiPropertyOptional({
     description:

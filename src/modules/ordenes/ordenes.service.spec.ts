@@ -3,7 +3,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { NotFoundException } from '@nestjs/common';
 import { OrdenesService } from './ordenes.service';
-import { OrdenVenta } from './entities';
+import { OrdenVenta, Transportadora } from './entities';
 
 const mockOrden: Partial<OrdenVenta> = {
   idOrden: 1,
@@ -46,6 +46,7 @@ const mockViewOrden = {
 describe('OrdenesService', () => {
   let service: OrdenesService;
   let repository: Repository<OrdenVenta>;
+  let transportadoraRepository: Repository<Transportadora>;
 
   const mockDataSource = {
     query: jest.fn(),
@@ -87,6 +88,12 @@ describe('OrdenesService', () => {
           },
         },
         {
+          provide: getRepositoryToken(Transportadora),
+          useValue: {
+            find: jest.fn(),
+          },
+        },
+        {
           provide: DataSource,
           useValue: mockDataSource,
         },
@@ -96,6 +103,9 @@ describe('OrdenesService', () => {
     service = module.get<OrdenesService>(OrdenesService);
     repository = module.get<Repository<OrdenVenta>>(
       getRepositoryToken(OrdenVenta),
+    );
+    transportadoraRepository = module.get<Repository<Transportadora>>(
+      getRepositoryToken(Transportadora),
     );
   });
 
@@ -226,10 +236,84 @@ describe('OrdenesService', () => {
           'RECHAZADO',
           'GUIA_ANULADA',
           'ANULADO',
+          'INDEMNIZACIÓN PAGADA',
+          'INDEMNIZADA',
+          'INDEMNIZADA POR DROPI',
+          'INDEMNIZADA POR PARTNERSHOP',
           10,
           0,
         ],
       );
+    });
+
+    it('should filter by latest novedad category', async () => {
+      await service.findAll({
+        page: 1,
+        limit: 10,
+        idCategoriaNovedad: 3,
+      });
+
+      expect(mockDataSource.query).toHaveBeenNthCalledWith(
+        1,
+        expect.stringContaining('ult_nov.id_categoria = $1'),
+        [3, 10, 0],
+      );
+      expect(mockDataSource.query).toHaveBeenNthCalledWith(
+        2,
+        expect.stringContaining('ult_nov.id_categoria = $1'),
+        [3],
+      );
+    });
+
+    it('should filter by transportadora name', async () => {
+      await service.findAll({
+        page: 1,
+        limit: 10,
+        transportadora: 'Coord',
+      });
+
+      expect(mockDataSource.query).toHaveBeenNthCalledWith(
+        1,
+        expect.stringContaining('ov.transportadora ILIKE $1'),
+        ['%Coord%', 10, 0],
+      );
+    });
+
+    it('should filter by explicit fecha reporte range', async () => {
+      await service.findAll({
+        page: 1,
+        limit: 10,
+        fechaReporteDesde: '2026-05-01',
+        fechaReporteHasta: '2026-05-22',
+      });
+
+      expect(mockDataSource.query).toHaveBeenNthCalledWith(
+        1,
+        expect.stringContaining('ov.fecha_reporte >= $1::date'),
+        ['2026-05-01', '2026-05-22', 10, 0],
+      );
+      expect(mockDataSource.query).toHaveBeenNthCalledWith(
+        1,
+        expect.stringContaining(
+          "ov.fecha_reporte < ($2::date + INTERVAL '1 day')",
+        ),
+        ['2026-05-01', '2026-05-22', 10, 0],
+      );
+    });
+  });
+
+  describe('findTransportadoras', () => {
+    it('should return transportadoras ordered by name', async () => {
+      jest
+        .spyOn(transportadoraRepository, 'find')
+        .mockResolvedValue([{ idTransportadora: 1, nombre: 'Coordinadora' }]);
+
+      const result = await service.findTransportadoras();
+
+      expect(result).toEqual([{ idTransportadora: 1, nombre: 'Coordinadora' }]);
+      expect(transportadoraRepository.find).toHaveBeenCalledWith({
+        order: { nombre: 'ASC' },
+      });
     });
   });
 
