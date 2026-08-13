@@ -1,10 +1,12 @@
-import { Controller, Get, Param, ParseIntPipe, Query } from '@nestjs/common';
+import { Controller, Get, Param, ParseIntPipe, Query, Res } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import type { Response } from 'express';
 import { OrdenesService } from './ordenes.service';
 import {
   FilterOrdenesDto,
   RANGOS_FECHA_REPORTE,
 } from './dto/filter-ordenes.dto';
+import { ExportOrdenesDto } from './dto/export-ordenes.dto';
 import { PaginatedOrdenesResponseDto } from './dto/paginated-ordenes-response.dto';
 import { OrdenVentaResponseDto } from './dto/orden-venta-response.dto';
 import { Public } from 'src/common/decorators/public.decorator';
@@ -103,6 +105,68 @@ export class OrdenesController {
   @Public()
   findTransportadoras() {
     return this.ordenesService.findTransportadoras();
+  }
+
+  @Get('export-csv')
+  @ApiOperation({
+    summary: 'Exportar órdenes a CSV',
+    description: 'Exporta todas las órdenes filtradas como archivo CSV. Máximo 50,000 registros.',
+  })
+  @Public()
+  async exportCsv(
+    @Query() filterDto: ExportOrdenesDto,
+    @Res() res: Response,
+  ): Promise<void> {
+    const ordenes = await this.ordenesService.findAllForCsv(filterDto);
+    
+    const headers = [
+      'Id orden',
+      'Orden tienda',
+      'Cliente',
+      'Producto',
+      'Categoría comentario',
+      'Ciudad',
+      'Plataforma',
+      'Estatus',
+      'Total',
+      'Fecha reporte',
+      'Guía',
+      'Transportadora',
+    ];
+    
+    const csvRows = ordenes.map((orden) => [
+      String(orden.idOrden),
+      orden.idOrdenTienda || '',
+      orden.cliente?.nombreOficial || '',
+      orden.detalles?.map((d) => d.producto?.nombreOficial).join('; ') || '',
+      orden.novedad?.categoria?.nombre || '',
+      orden.ciudad?.nombreCiudad || '',
+      orden.plataforma || '',
+      orden.estatus || '',
+      String(orden.totalOrden || 0),
+      orden.fechaReporte ? new Date(orden.fechaReporte).toISOString().split('T')[0] : '',
+      orden.numeroGuia || '',
+      orden.transportadora?.nombre || '',
+    ]);
+    
+    const csvContent = [headers, ...csvRows]
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    
+    const timestamp = new Intl.DateTimeFormat('sv-SE', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+      .format(new Date())
+      .replace(' ', '_')
+      .replace(/:/g, '-');
+    
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename=ordenes-${timestamp}.csv`);
+    res.end(`\uFEFF${csvContent}`);
   }
 
   @Get(':id')

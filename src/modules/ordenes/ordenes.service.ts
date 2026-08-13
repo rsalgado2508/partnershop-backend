@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { DetalleOrden, OrdenVenta, Producto } from './entities';
 import { FilterOrdenesDto } from './dto/filter-ordenes.dto';
+import { ExportOrdenesDto } from './dto/export-ordenes.dto';
 import { PaginatedResponseDto } from '../../common/dto/paginated-response.dto';
 import { Cliente } from './entities/cliente.entity';
 import { Ciudad } from './entities/ciudad.entity';
@@ -162,7 +163,7 @@ export class OrdenesService {
     );
   }
 
-  private buildFindAllWhereClause(filterDto: FilterOrdenesDto): SqlCondition {
+  private buildFindAllWhereClause(filterDto: FilterOrdenesDto | ExportOrdenesDto): SqlCondition {
     const conditions: string[] = [];
     const values: Array<string | number> = [];
 
@@ -413,5 +414,34 @@ export class OrdenesService {
       })) ?? null;
 
     return orden;
+  }
+
+  async findAllForCsv(
+    filterDto: ExportOrdenesDto,
+  ): Promise<OrdenVenta[]> {
+    const MAX_RECORDS = 50000;
+    const where = this.buildFindAllWhereClause(filterDto);
+    const selectSql = `
+      SELECT
+        ov.*,
+        ult_nov.id_novedad AS novedad_id_novedad,
+        ult_nov.id_categoria AS novedad_id_categoria,
+        ult_nov.descripcion AS novedad_descripcion,
+        ult_nov.estado AS novedad_estado,
+        ult_nov.usuario_registro AS novedad_usuario_registro,
+        ult_nov.fecha_registro AS novedad_fecha_registro,
+        ult_nov.fecha_actualizacion AS novedad_fecha_actualizacion,
+        ult_nov.categoria_nombre AS novedad_categoria_nombre,
+        ult_nov.categoria_descripcion AS novedad_categoria_descripcion,
+        ult_nov.categoria_activo AS novedad_categoria_activo,
+        ult_nov.categoria_fecha_creacion AS novedad_categoria_fecha_creacion
+      FROM view_ordenes ov
+      ${ULTIMA_NOVEDAD_JOIN_SQL}
+      ${where.clause}
+      ORDER BY ov.fecha_reporte ASC, ov.id_orden DESC
+      LIMIT ${MAX_RECORDS}
+    `;
+    const rows = await this.dataSource.query(selectSql, where.values);
+    return rows.map((row: ViewOrdenRow) => this.toOrdenVenta(row));
   }
 }

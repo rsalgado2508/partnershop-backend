@@ -7,7 +7,6 @@ import {
   IsString,
   Min,
 } from 'class-validator';
-import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { IsValidDateFormat } from '../validators/date-format.validator';
 
 export const RANGOS_FECHA_REPORTE = [
@@ -20,7 +19,7 @@ export const RANGOS_FECHA_REPORTE = [
 
 export type RangoFechaReporte = (typeof RANGOS_FECHA_REPORTE)[number];
 
-export class FilterOrdenesDto extends PaginationDto {
+export class ExportOrdenesDto {
   @ApiPropertyOptional({ description: 'Filtrar por estatus de la orden' })
   @IsOptional()
   @IsString()
