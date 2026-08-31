@@ -107,6 +107,14 @@ export class OrdenesController {
     return this.ordenesService.findTransportadoras();
   }
 
+  @Get('plataformas')
+  @ApiOperation({ summary: 'Listar plataformas presentes en las órdenes' })
+  @ApiOkResponse({ type: String, isArray: true })
+  @Public()
+  findPlataformas() {
+    return this.ordenesService.findPlataformas();
+  }
+
   @Get('export-csv')
   @ApiOperation({
     summary: 'Exportar órdenes a CSV',

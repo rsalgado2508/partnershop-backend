@@ -105,6 +105,16 @@ export class OrdenesService {
     });
   }
 
+  async findPlataformas(): Promise<string[]> {
+    const rows: Array<{ plataforma: string }> = await this.dataSource.query(`
+      SELECT DISTINCT plataforma
+      FROM view_ordenes
+      WHERE plataforma IS NOT NULL AND BTRIM(plataforma) <> ''
+      ORDER BY plataforma ASC
+    `);
+    return rows.map((row) => row.plataforma);
+  }
+
   private getRangoFechaReporteCondition(
     rangoFechaReporte: FilterOrdenesDto['rangoFechaReporte'],
   ): SqlCondition | null {
