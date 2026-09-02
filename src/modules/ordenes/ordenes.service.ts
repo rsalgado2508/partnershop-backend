@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { DetalleOrden, OrdenVenta, Producto } from './entities';
-import { FilterOrdenesDto } from './dto/filter-ordenes.dto';
+import { CampoOrdenOrdenes, FilterOrdenesDto } from './dto/filter-ordenes.dto';
 import { ExportOrdenesDto } from './dto/export-ordenes.dto';
 import { PaginatedResponseDto } from '../../common/dto/paginated-response.dto';
 import { Cliente } from './entities/cliente.entity';
@@ -67,6 +67,22 @@ const ULTIMA_NOVEDAD_JOIN_SQL = `
     LIMIT 1
   ) ult_nov ON TRUE
 `;
+
+const ORDER_BY_COLUMNS: Record<CampoOrdenOrdenes, string> = {
+  ordenTienda: 'ov.id_orden_tienda',
+  cliente: 'ov.cliente',
+  producto: 'ov.producto',
+  categoriaComentario: 'ult_nov.categoria_nombre',
+  ciudad: 'ov.nombre_ciudad',
+  plataforma: 'ov.plataforma',
+  estatus: 'ov.estado',
+  total: 'ov.total_orden',
+  fechaReporte: 'ov.fecha_reporte',
+  diasAbierto: 'ov.fecha_reporte',
+  ultimoComentario: 'ult_nov.fecha_registro',
+  guia: 'ov.numero_guia',
+  transportadora: 'ov.transportadora',
+};
 
 @Injectable()
 export class OrdenesService {
@@ -173,7 +189,9 @@ export class OrdenesService {
     );
   }
 
-  private buildFindAllWhereClause(filterDto: FilterOrdenesDto | ExportOrdenesDto): SqlCondition {
+  private buildFindAllWhereClause(
+    filterDto: FilterOrdenesDto | ExportOrdenesDto,
+  ): SqlCondition {
     const conditions: string[] = [];
     const values: Array<string | number> = [];
 
@@ -247,6 +265,7 @@ export class OrdenesService {
     const { page = 1, limit = 10 } = filterDto;
     const skip = (page - 1) * limit;
     const where = this.buildFindAllWhereClause(filterDto);
+    const orderBy = this.buildOrderByClause(filterDto);
     const selectSql = `
       SELECT
         ov.*,
@@ -264,7 +283,7 @@ export class OrdenesService {
       FROM view_ordenes ov
       ${ULTIMA_NOVEDAD_JOIN_SQL}
       ${where.clause}
-      ORDER BY ov.fecha_reporte ASC, ov.id_orden DESC
+      ${orderBy}
       LIMIT $${where.values.length + 1}
       OFFSET $${where.values.length + 2}
     `;
@@ -282,6 +301,20 @@ export class OrdenesService {
     const data = rows.map((row: ViewOrdenRow) => this.toOrdenVenta(row));
 
     return new PaginatedResponseDto(data, total, page, limit);
+  }
+
+  private buildOrderByClause(filterDto: FilterOrdenesDto): string {
+    const field = filterDto.ordenarPor ?? 'fechaReporte';
+    const requestedDirection = filterDto.direccion ?? 'asc';
+    // Días abiertos crece cuando la fecha de reporte es más antigua.
+    const direction =
+      field === 'diasAbierto'
+        ? requestedDirection === 'asc'
+          ? 'DESC'
+          : 'ASC'
+        : requestedDirection.toUpperCase();
+
+    return `ORDER BY ${ORDER_BY_COLUMNS[field]} ${direction} NULLS LAST, ov.id_orden DESC`;
   }
 
   private toOrdenVenta(row: ViewOrdenRow): OrdenVenta {
@@ -426,9 +459,7 @@ export class OrdenesService {
     return orden;
   }
 
-  async findAllForCsv(
-    filterDto: ExportOrdenesDto,
-  ): Promise<OrdenVenta[]> {
+  async findAllForCsv(filterDto: ExportOrdenesDto): Promise<OrdenVenta[]> {
     const MAX_RECORDS = 50000;
     const where = this.buildFindAllWhereClause(filterDto);
     const selectSql = `

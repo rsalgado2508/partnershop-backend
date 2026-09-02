@@ -300,6 +300,40 @@ describe('OrdenesService', () => {
         ['2026-05-01', '2026-05-22', 10, 0],
       );
     });
+
+    it('should sort by the latest comment across the paginated result', async () => {
+      await service.findAll({
+        page: 1,
+        limit: 10,
+        ordenarPor: 'ultimoComentario',
+        direccion: 'desc',
+      });
+
+      expect(mockDataSource.query).toHaveBeenNthCalledWith(
+        1,
+        expect.stringContaining(
+          'ORDER BY ult_nov.fecha_registro DESC NULLS LAST, ov.id_orden DESC',
+        ),
+        [10, 0],
+      );
+    });
+
+    it('should invert fecha reporte direction when sorting by open days', async () => {
+      await service.findAll({
+        page: 1,
+        limit: 10,
+        ordenarPor: 'diasAbierto',
+        direccion: 'asc',
+      });
+
+      expect(mockDataSource.query).toHaveBeenNthCalledWith(
+        1,
+        expect.stringContaining(
+          'ORDER BY ov.fecha_reporte DESC NULLS LAST, ov.id_orden DESC',
+        ),
+        [10, 0],
+      );
+    });
   });
 
   describe('findTransportadoras', () => {
@@ -319,7 +353,9 @@ describe('OrdenesService', () => {
 
   describe('findOne', () => {
     it('should return an order by id', async () => {
-      jest.spyOn(repository, 'findOne').mockResolvedValue(mockOrden as OrdenVenta);
+      jest
+        .spyOn(repository, 'findOne')
+        .mockResolvedValue(mockOrden as OrdenVenta);
 
       const result = await service.findOne(1);
       expect(result.idOrden).toBe(1);

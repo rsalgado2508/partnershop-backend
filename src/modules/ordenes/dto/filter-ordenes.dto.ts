@@ -1,12 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import {
-  IsIn,
-  IsInt,
-  IsOptional,
-  IsString,
-  Min,
-} from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, Min } from 'class-validator';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { IsValidDateFormat } from '../validators/date-format.validator';
 
@@ -20,7 +14,45 @@ export const RANGOS_FECHA_REPORTE = [
 
 export type RangoFechaReporte = (typeof RANGOS_FECHA_REPORTE)[number];
 
+export const CAMPOS_ORDEN_ORDENES = [
+  'ordenTienda',
+  'cliente',
+  'producto',
+  'categoriaComentario',
+  'ciudad',
+  'plataforma',
+  'estatus',
+  'total',
+  'fechaReporte',
+  'diasAbierto',
+  'ultimoComentario',
+  'guia',
+  'transportadora',
+] as const;
+
+export type CampoOrdenOrdenes = (typeof CAMPOS_ORDEN_ORDENES)[number];
+export const DIRECCIONES_ORDEN = ['asc', 'desc'] as const;
+export type DireccionOrden = (typeof DIRECCIONES_ORDEN)[number];
+
 export class FilterOrdenesDto extends PaginationDto {
+  @ApiPropertyOptional({
+    description: 'Columna por la cual ordenar el listado',
+    enum: CAMPOS_ORDEN_ORDENES,
+  })
+  @IsOptional()
+  @IsString()
+  @IsIn(CAMPOS_ORDEN_ORDENES)
+  ordenarPor?: CampoOrdenOrdenes;
+
+  @ApiPropertyOptional({
+    description: 'Dirección del ordenamiento',
+    enum: DIRECCIONES_ORDEN,
+  })
+  @IsOptional()
+  @IsString()
+  @IsIn(DIRECCIONES_ORDEN)
+  direccion?: DireccionOrden;
+
   @ApiPropertyOptional({ description: 'Filtrar por estatus de la orden' })
   @IsOptional()
   @IsString()
