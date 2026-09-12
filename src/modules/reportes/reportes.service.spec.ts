@@ -124,7 +124,7 @@ describe('ReportesService', () => {
     expect(result).toEqual([{ nombre: 'CLIENTE', total: 7 }]);
     expect(mockManager.query).toHaveBeenCalledWith(
       expect.stringContaining("(CURRENT_TIMESTAMP AT TIME ZONE 'America/Bogota')::date - 20"),
-      [[15, 5, 3, 23, 61]],
+      [[15, 5, 3, 23, 41, 42, 45, 61]],
     );
   });
 });
