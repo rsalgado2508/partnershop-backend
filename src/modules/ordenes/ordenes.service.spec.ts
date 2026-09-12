@@ -203,7 +203,7 @@ describe('OrdenesService', () => {
       expect(mockDataSource.query).toHaveBeenNthCalledWith(
         1,
         expect.stringContaining(
-          "ov.fecha_reporte < CURRENT_TIMESTAMP - INTERVAL '2 days'",
+          "ov.fecha_reporte < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Bogota')::date - 2",
         ),
         [
           'GUIA_GENERADA',

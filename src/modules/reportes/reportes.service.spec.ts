@@ -83,15 +83,15 @@ describe('ReportesService', () => {
     await service.getSeguimientoDiario({});
 
     expect(mockManager.query).toHaveBeenCalledWith(
-      expect.stringContaining('s.log_cargue_id = ('),
+      expect.stringContaining('SELECT DISTINCT ON (s.fecha_snapshot)'),
       [],
     );
     expect(mockManager.query).toHaveBeenCalledWith(
-      expect.stringContaining('SELECT MAX(log_cargue_id)'),
+      expect.stringContaining('s.log_cargue_id DESC'),
       [],
     );
     expect(mockManager.query).toHaveBeenCalledWith(
-      expect.stringContaining('ORDER BY s.fecha_snapshot ASC'),
+      expect.stringContaining('ORDER BY s.fecha_snapshot, s.log_cargue_id DESC'),
       [],
     );
   });
@@ -109,7 +109,7 @@ describe('ReportesService', () => {
       { nombre: 'TRANSPORTADORA', total: 2 },
     ]);
     expect(mockManager.query).toHaveBeenCalledWith(
-      expect.stringContaining("CURRENT_TIMESTAMP - INTERVAL '2 days'"),
+      expect.stringContaining("(CURRENT_TIMESTAMP AT TIME ZONE 'America/Bogota')::date - 2"),
       [[16, 18, 22, 35, 46]],
     );
   });
@@ -123,8 +123,8 @@ describe('ReportesService', () => {
 
     expect(result).toEqual([{ nombre: 'CLIENTE', total: 7 }]);
     expect(mockManager.query).toHaveBeenCalledWith(
-      expect.stringContaining("CURRENT_TIMESTAMP - INTERVAL '20 days'"),
-      [[15, 5, 3, 23]],
+      expect.stringContaining("(CURRENT_TIMESTAMP AT TIME ZONE 'America/Bogota')::date - 20"),
+      [[15, 5, 3, 23, 61]],
     );
   });
 });

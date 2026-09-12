@@ -98,7 +98,7 @@ export class ReportesService {
           ORDER BY n.id_orden, n.id_novedad DESC
         ) ult_novedad ON ult_novedad.id_orden = ov.id_orden
         JOIN categoria_novedad cn ON cn.id_categoria = ult_novedad.id_categoria
-        WHERE ov.fecha_reporte < CURRENT_TIMESTAMP - INTERVAL '2 days'
+        WHERE ov.fecha_reporte < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Bogota')::date - 2
           AND ov.estatus = ANY($1)
         GROUP BY cn.nombre
         ORDER BY cn.nombre
@@ -129,7 +129,8 @@ export class ReportesService {
           ORDER BY n.id_orden, n.id_novedad DESC
         ) ult_novedad ON ult_novedad.id_orden = ov.id_orden
         JOIN categoria_novedad cn ON cn.id_categoria = ult_novedad.id_categoria
-        WHERE ov.fecha_reporte < CURRENT_TIMESTAMP - INTERVAL '20 days'
+        -- fecha_reporte is a date; compare calendar days in the business timezone.
+        WHERE ov.fecha_reporte < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Bogota')::date - 20
           AND ov.estatus <> ALL($1)
         GROUP BY cn.nombre
         ORDER BY cn.nombre

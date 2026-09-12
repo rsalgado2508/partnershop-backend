@@ -155,7 +155,7 @@ export class OrdenesService {
         };
       case 'entre_15_y_20_dias':
         return {
-          clause: `ov.fecha_reporte >= CURRENT_TIMESTAMP - INTERVAL '20 days'
+          clause: `ov.fecha_reporte >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Bogota')::date - 20
             AND ov.fecha_reporte <= CURRENT_TIMESTAMP - INTERVAL '15 days'
             AND ov.estado NOT IN (${this.getSqlPlaceholders(
               OrdenesService.ESTADOS_EXCLUIDOS_RANGOS.length,
@@ -164,7 +164,7 @@ export class OrdenesService {
         };
       case 'mas_de_20_dias':
         return {
-          clause: `ov.fecha_reporte < CURRENT_TIMESTAMP - INTERVAL '20 days'
+          clause: `ov.fecha_reporte < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Bogota')::date - 20
             AND ov.estado NOT IN (${this.getSqlPlaceholders(
               OrdenesService.ESTADOS_EXCLUIDOS_RANGOS.length,
             )})`,
@@ -172,7 +172,7 @@ export class OrdenesService {
         };
       case 'guias_mayor_a_2_dias':
         return {
-          clause: `ov.fecha_reporte < CURRENT_TIMESTAMP - INTERVAL '2 days'
+          clause: `ov.fecha_reporte < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Bogota')::date - 2
             AND ov.estado IN (${this.getSqlPlaceholders(
               OrdenesService.ESTATUS_GUIAS_MAYOR_A_2_DIAS.length,
             )})`,
